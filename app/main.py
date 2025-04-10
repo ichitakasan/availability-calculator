@@ -3,20 +3,11 @@ from datetime import timedelta
 import os
 
 import uvicorn
-from fastapi import FastAPI, Query
-from dotenv import load_dotenv
+from fastapi import FastAPI, Query, Request
 
 from exceptions import *
 from functions import *
 
-
-load_dotenv()
-REQUIRED_ENVIRONMENT_VARIABLES = ['HOST', 'PORT']
-for e in REQUIRED_ENVIRONMENT_VARIABLES:
-    if e not in os.environ:
-        raise EnvironmentError(f'Undefined environment variable {e}')
-HOST = os.getenv('HOST')
-PORT = os.getenv('PORT')
 
 app = FastAPI()
 
@@ -26,15 +17,11 @@ async def status():
 
 
 @app.get("/api")
-async def api(downtime : Annotated[str | None, Query()] = None,
+async def api(request : Request,
+              downtime : Annotated[str | None, Query()] = None,
               availability : Annotated[float | None, Query(min_value=0, max_value=100)] = None,
               dur : Annotated[list[int] | None, Query()] = None,
               wk : Annotated[str | None, Query(min_length=7, max_length=7)] = None):
-
-    print(f'downtime = {downtime}')
-    print(f'availability = {availability}')
-    print(f'dur = {dur}')
-    print(f'wk = {wk}')
 
     # Error handling
     if not downtime and not availability:
@@ -59,15 +46,17 @@ async def api(downtime : Annotated[str | None, Query()] = None,
     elif wk:
         week_durations = [ord(d) - ord('a') for d in wk]
     
+    # Calculation
+    request_url = f'{request.base_url}{request.url.path[1:]}'
     if downtime:
-        return calculate_availability(downtime, week_durations)
+        return calculate_availability(downtime, week_durations, request_url)
     elif availability:
-        return calculate_downtime(availability, week_durations)
+        return calculate_downtime(availability, week_durations, request_url)
     else:
         raise ParameterException(f'API Error: no downtime nor availability found')
 
 
-def calculate_availability(downtime, week_durations) -> dict:
+def calculate_availability(downtime, week_durations, request_url) -> dict:
     """
     Returns the availability (in %) based on the downtime in parameter.
     """
@@ -86,7 +75,7 @@ def calculate_availability(downtime, week_durations) -> dict:
             'downtimeSecs' : downtimeSecs,
             'downtime' : downtime,
             'weekDurations' : week_durations,
-            'downtimeURL' : f'https://{HOST}:{PORT}{app.url_path_for('api')}?downtime={downtime}&wk={wk}',
+            'downtimeURL' : f'{request_url}?downtime={downtime}&wk={wk}',
             'availability' : {
                 'week': avail_week * 100,
                 'month': avail_month * 100,
@@ -103,7 +92,7 @@ def calculate_availability(downtime, week_durations) -> dict:
         return {
             'downtimeSecs' : downtimeSecs,
             'downtime' : downtime,
-            'URL' : f'https://{HOST}:{PORT}{app.url_path_for('api')}?downtime={downtime}',
+            'URL' : f'{request_url}?downtime={downtime}',
             'availability' : {
                 'day': avail_day * 100,
                 'week': avail_week * 100,
@@ -114,7 +103,7 @@ def calculate_availability(downtime, week_durations) -> dict:
         }
 
 
-def calculate_downtime(availability, week_durations) -> dict:
+def calculate_downtime(availability, week_durations, request_url) -> dict:
     """
     Returns the downtime (in sec) based on the availability in parameter.
     """
@@ -129,7 +118,7 @@ def calculate_downtime(availability, week_durations) -> dict:
         return {
             'availability' : availability,
             'weekDurations' : week_durations,
-            'url' : f'https://{HOST}:{PORT}{app.url_path_for('api')}?availability={availability}&wk={wk}',
+            'url' : f'{request_url}?availability={availability}&wk={wk}',
             'downtime' : {
                 'week': timedelta_to_str(downtime_week),
                 'month': timedelta_to_str(downtime_month),
@@ -145,7 +134,7 @@ def calculate_downtime(availability, week_durations) -> dict:
         downtime_year = calculate_yearly_downtime(f_availability)
         return {
             'availability' : availability,
-            'url' : f'https://{HOST}:{PORT}{app.url_path_for('api')}?availability={availability}',
+            'url' : f'{request_url}?availability={availability}',
             'downtime' : {
                 'daySecs' : downtime_day.total_seconds(),
                 'day': timedelta_to_str(downtime_day),
@@ -161,4 +150,5 @@ def calculate_downtime(availability, week_durations) -> dict:
         }
 
 if __name__ == "__main__":
-    uvicorn.run(app, port=int(PORT))
+    PORT = 8000
+    uvicorn.run(app, port=PORT)

@@ -89,7 +89,6 @@ def calculate_weekly_downtime(f_availability : float, week_durations : list[int]
     Default value for the week_durations parameter is 24x7 (full time).
     Output: timedelta
     """
-    print(f'week_durations = {week_durations}')
     seconds_count = sum([(d * 3600) for d in week_durations])
     ret = seconds_count * (1 - f_availability)
     return timedelta(seconds=ret)
@@ -172,4 +171,4 @@ def timedelta_to_str(t_delta) -> str:
         if sec_left > 0:
             l_durations.append(f'{sec_left}s')
     
-    return (' '.join(l_durations) if len(l_durations) > 0 else '0s')
+    return (''.join(l_durations) if len(l_durations) > 0 else '0s')

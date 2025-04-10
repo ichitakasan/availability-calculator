@@ -42,14 +42,32 @@ Examples:
 
 # Run
 
+## Development
+
 With the Python virtualenv activated:
-`fastapi dev main.py`
+```bash
+fastapi dev app/main.py   # Uses default port 8000
+fastapi dev app/main.py --port 9999
+```
 
-Other ways:
-* In development
-`uvicorn main:app --port 3000`
-* In production
-`gunicorn -k uvicorn.workers.UvicornWorker -w 4 --bind 0.0.0.0:5000 main:app`
+## Production
 
-On Windows:
-`python main.py`
+```bash
+fastapi run app/main.py   # Uses default port 8000
+fastapi run app/main.py --port 80
+
+# If running behind a proxy like Nginx or Traefik add --proxy-headers
+fastapi run app/main.py --port 80 --proxy-headers
+```
+
+## Other Ways
+
+```bash
+# In development (cd into app/ directory first)
+uvicorn main:app --port 3000 [--reload] # Optional automatic reload
+# In development (using coded uvicorn in "__main__" function)
+python app/main.py
+
+# In production (NOT WORKING ON WINDOWS!)
+gunicorn -k uvicorn.workers.UvicornWorker -w 4 --bind 0.0.0.0:5000 main:app
+```
